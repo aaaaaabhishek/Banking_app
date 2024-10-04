@@ -12,32 +12,18 @@ public class NotificationProducerImpl implements NotificationProducer {
     private static final String TOPIC = "transaction_notifications";
     private static final Logger logger = LoggerFactory.getLogger(NotificationProducerImpl.class);
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final JavaMailSender mailSender;
-    @Autowired
-    public NotificationProducerImpl(KafkaTemplate<String, String> kafkaTemplate, JavaMailSender mailSender) {
+    public NotificationProducerImpl(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
-        this.mailSender = mailSender;
     }
     public boolean sendNotification(String message, String email, Double amount) {
         try {
             // Send Kafka notification
-            kafkaTemplate.send(TOPIC, message + " : " + amount);
-            sendEmailNotification(email, message, amount);
-            return true; // If both Kafka and email were sent successfully
+            kafkaTemplate.send(TOPIC, email,message + " : " + amount);
+            logger.info("Notification sent to Kafka: " + message + " : " + amount);
+            return true; //
         } catch (Exception e) {
             logger.error("Error sending notification: ", e);
             return false;
         }
-    }
-    public boolean sendNotification(String message, String email) {
-        return sendNotification(message, email, null);
-    }
-    public void sendEmailNotification(String toEmail, String message, Double amount) {
-        SimpleMailMessage mailMessage = new SimpleMailMessage();
-        mailMessage.setTo(toEmail);
-        mailMessage.setSubject("Transaction Notification");
-        String text = (amount != null) ? (message + " Amount deducted: " + amount) : message;
-        mailMessage.setText(text);
-        mailSender.send(mailMessage);
     }
 }

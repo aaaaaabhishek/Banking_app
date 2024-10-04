@@ -6,16 +6,18 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class CustomerDto {
-    public Long customerId;
+    public String customerId;  // Add this line
     public String name;
     public long age;
-    @OneToOne(cascade= CascadeType.ALL,fetch = FetchType.LAZY)
+    public String emailId;
     public CurrentAccount currentAccount;
-    @OneToOne(cascade= CascadeType.ALL,fetch = FetchType.LAZY)
     public SavingAccount savingAccount;
 }
 

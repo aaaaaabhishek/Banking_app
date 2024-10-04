@@ -10,8 +10,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @Table(name = "saving_accounts")
 public class SavingAccount {
-    @GeneratedValue(strategy= GenerationType.AUTO)
-    public UUID id;
+    @Id
+    @GeneratedValue(strategy= GenerationType.IDENTITY)
+    public Long id;
     public Double balance;
     public String accountType="saving";
     @Column(unique = true, nullable = false)

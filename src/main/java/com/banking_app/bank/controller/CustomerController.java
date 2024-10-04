@@ -7,30 +7,23 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-
-import javax.naming.Binding;
 import java.util.List;
 
 @RestController
 @RequestMapping("/customers") // Base URL for the controller
 public class CustomerController {
-
     private final CustomerService customerService;
-
     public CustomerController(CustomerService customerService) {
         this.customerService = customerService;
     }
-
-    @PostMapping("/onboard")
-    public ResponseEntity<?> onboardCustomer(@Valid @RequestBody CustomerDto customerDto, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) {
-            // Return validation errors and bad request status
-            return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
+    @PostMapping
+    public ResponseEntity<?> onboardCustomer(@Valid @RequestBody  CustomerDto customerDto,BindingResult bindingResult) {
+        if(bindingResult.hasErrors()){
+            return new ResponseEntity<>(bindingResult.getFieldError().getField(),HttpStatus.BAD_REQUEST);
         }
         CustomerDto createdCustomer = customerService.onboardCustomer(customerDto);
         return new ResponseEntity<>(createdCustomer, HttpStatus.CREATED);
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<CustomerDto> getOnboardCustomer(@PathVariable Long id) {
         CustomerDto customerDto = customerService.getOnboardCustomer(id);

@@ -2,7 +2,7 @@ package com.banking_app.bank.service.Impl.Impl;
 
 import com.banking_app.bank.Entity.Customer;
 import com.banking_app.bank.Exception.*;
-import com.banking_app.bank.Repositary.CustomerRepositary;
+import com.banking_app.bank.Repositary.CustomerRepository;
 import com.banking_app.bank.service.I_NotificationProducer;
 import com.banking_app.bank.service.Impl.CurrentAccoount;
 import org.modelmapper.ModelMapper;
@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.Set;
 @Service
 public class CureentAccountService implements CurrentAccoount {
-    private final CustomerRepositary customerRepositary;
+    private final CustomerRepository customerRepository;
     private final ModelMapper mapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
@@ -22,8 +22,8 @@ public class CureentAccountService implements CurrentAccoount {
     private final Set<String> processedTransactions = new HashSet<>();
 
     @Autowired
-    public CureentAccountService(CustomerRepositary customerRepositary, ModelMapper mapper, I_NotificationProducer notificationProducer,KafkaTemplate<String, String> kafkaTemplate) {
-        this.customerRepositary = customerRepositary;
+    public CureentAccountService(CustomerRepository customerRepository, ModelMapper mapper, I_NotificationProducer notificationProducer, KafkaTemplate<String, String> kafkaTemplate) {
+        this.customerRepository = customerRepository;
         this.mapper = mapper;
         this.notificationProducer = notificationProducer;
         this.kafkaTemplate = kafkaTemplate;
@@ -33,7 +33,7 @@ public class CureentAccountService implements CurrentAccoount {
     @Override
     @Transactional
     public void deposits(Double amount, String accountNumber) {
-        Customer customer = customerRepositary.findByCurrentAccountNumber(accountNumber)
+        Customer customer = customerRepository.findByCurrentAccount_AccountNumber(accountNumber)
                 .orElseThrow(() -> new RuntimeException("Account with account number " + accountNumber + " not found"));
         String transactionId = generateIdempotencyKey(amount, accountNumber);
         if (isTransactionAlreadyProcessed(transactionId)) {
@@ -43,7 +43,7 @@ public class CureentAccountService implements CurrentAccoount {
         if ("current".equals(customer.getCurrentAccount().getAccountType())) {
             Double balance = customer.getCurrentAccount().getBalance();
             customer.getCurrentAccount().setBalance(balance + amount);
-            customerRepositary.save(customer);
+            customerRepository.save(customer);
         } else {
             throw new RuntimeException("Account type mismatch. Expected: 'current', but found: " + customer.getCurrentAccount().getAccountType());
         }
@@ -65,10 +65,10 @@ public class CureentAccountService implements CurrentAccoount {
             throw new AccountNotFoundException("Please provide both the " + fromAccount + " and " + toAccount + " account numbers.");
         }
 
-        Customer fromAccountCustomer = customerRepositary.findByCurrentAccountNumber(fromAccount)
+        Customer fromAccountCustomer = customerRepository.findByCurrentAccount_AccountNumber(fromAccount)
                 .orElseThrow(() -> new RuntimeException("Account with account number " + fromAccount + " not found"));
 
-        Customer toAccountCustomer = customerRepositary.findByCurrentAccountNumber(toAccount)
+        Customer toAccountCustomer = customerRepository.findByCurrentAccount_AccountNumber(toAccount)
                 .orElseThrow(() -> new RuntimeException("Account with account number " + toAccount + " not found"));
 
         if (fromAccountCustomer.equals(toAccountCustomer)) {
@@ -85,7 +85,7 @@ public class CureentAccountService implements CurrentAccoount {
 
             fromAccountCustomer.getCurrentAccount().setBalance(total_balance - deduction);
             fromAccountCustomer.getSavingAccount().setBalance(fromAccountCustomer.getSavingAccount().getBalance() + amount);
-            customerRepositary.save(fromAccountCustomer);
+            customerRepository.save(fromAccountCustomer);
 
             // Send Notification
             String notificationMessage = "Debited " + deduction + " (including fee) from " + fromAccount + " and credited " + amount + " to savings account.";
@@ -115,12 +115,12 @@ public class CureentAccountService implements CurrentAccoount {
             throw new InvalidAccountTypeException("Invalid account type for transfer.");
         }
 
-        customerRepositary.save(fromAccountCustomer);
-        customerRepositary.save(toAccountCustomer);
+        customerRepository.save(fromAccountCustomer);
+        customerRepository.save(toAccountCustomer);
 
-        kafkaTemplate.send("transaction_notifications", "Transfer successful from " + fromAccount + " to " + toAccount);
+//        kafkaTemplate.send("transaction_notifications", "Transfer successful from " + fromAccount + " to " + toAccount);
 
-        // Send Notification
+//        // Send Notification
         String notificationMessage = "Transferred " + amount + " from " + fromAccount + " to " + toAccount + ". Fee: " + fee + ". Total deduction: " + deduction;
         notificationProducer.sendNotification(notificationMessage, fromAccountCustomer.getEmailId(), amount);
 
@@ -138,9 +138,9 @@ public class CureentAccountService implements CurrentAccoount {
             throw new AlreadyProceedTransactionException("This transaction has already been processed");
         }
 
-        Customer fromCustomer = customerRepositary.findById(customerId)
+        Customer fromCustomer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new AccountNotFoundException(customerId + " is not present in our database"));
-        Customer toCustomer = customerRepositary.findByCurrentAccountNumber(toAccountNumber)
+        Customer toCustomer = customerRepository.findByCurrentAccount_AccountNumber(toAccountNumber)
                 .orElseThrow(() -> new AccountNotFoundException(toAccountNumber + " This account number customer is not present in our database"));
 
         Double fromCurrentBalance = fromCustomer.getCurrentAccount().getBalance();
@@ -168,8 +168,8 @@ public class CureentAccountService implements CurrentAccoount {
         }
 
         fromCustomer.getCurrentAccount().setBalance(fromCurrentBalance - totalDeduction);
-        customerRepositary.save(fromCustomer);
-        customerRepositary.save(toCustomer);
+        customerRepository.save(fromCustomer);
+        customerRepository.save(toCustomer);
 
         String notificationMessage = "Transfer of " + amount + " from Customer ID: " + customerId + " to Account Number: " + toAccountNumber + " completed.";
         String customerEmail = fromCustomer.getEmailId();

@@ -2,32 +2,33 @@ package com.banking_app.bank.service.Impl.Impl;
 
 import com.banking_app.bank.Entity.Customer;
 import com.banking_app.bank.Exception.*;
-import com.banking_app.bank.Repositary.CustomerRepositary;
-import com.banking_app.bank.service.AccountService;
+import com.banking_app.bank.Repositary.CustomerRepository;
 import com.banking_app.bank.service.Impl.SavingAccount;
 import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.HashSet;
 import java.util.Set;
-
+@Service
 public class SavingAccountService implements SavingAccount {
-    private final CustomerRepositary customerRepositary;
+    private final CustomerRepository customerRepository;
     private final ModelMapper mapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final Set<String> processedTransactions = new HashSet<>(); // Track processed transactions
 
-    public SavingAccountService(CustomerRepositary customerRepositary, ModelMapper mapper, KafkaTemplate<String, String> kafkaTemplate) {
-        this.customerRepositary = customerRepositary;
+    public SavingAccountService(CustomerRepository customerRepository, ModelMapper mapper, KafkaTemplate<String, String> kafkaTemplate) {
+        this.customerRepository = customerRepository;
         this.mapper = mapper;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @Override
+
     @Transactional
+    @Override
     public void deposits(Double amount, String accountNumber) {
-        Customer customer = customerRepositary.findByCurrentAccountNumber(accountNumber)
+        Customer customer = customerRepository.findByCurrentAccount_AccountNumber(accountNumber)
                 .orElseThrow(() -> new AccountNotFoundException("Account with account number " + accountNumber + " not found"));
         String transactionId = generateIdempotencyKey(amount, accountNumber);
         if (isTransactionAlreadyProcessed(transactionId)) {
@@ -40,7 +41,7 @@ public class SavingAccountService implements SavingAccount {
             Double new_balance = saving_balance + (saving_balance * 0.005);  // Assuming 0.5% interest
             customer.getSavingAccount().setBalance(new_balance + amount);
         }
-        customerRepositary.save(customer);
+        customerRepository.save(customer);
 
         // Mark transaction as processed
         processedTransactions.add(transactionId);
@@ -60,9 +61,9 @@ public class SavingAccountService implements SavingAccount {
         if (fromAccountnumber == null || toAccountnumber == null) {
             throw new InvalidTransferException("Account numbers must not be null");
         }
-        Customer fromAccountNumber = customerRepositary.findByCurrentAccountNumber(fromAccountnumber)
+        Customer fromAccountNumber = customerRepository.findByCurrentAccount_AccountNumber(fromAccountnumber)
                 .orElseThrow(() -> new AccountNotFoundException("Account with account number " + fromAccountnumber + " not found"));
-        Customer toAccountNumber = customerRepositary.findByCurrentAccountNumber(toAccountnumber)
+        Customer toAccountNumber = customerRepository.findByCurrentAccount_AccountNumber(toAccountnumber)
                 .orElseThrow(() -> new AccountNotFoundException("Account with account number " + toAccountnumber + " not found"));
         if(!fromAccountNumber.equals(toAccountNumber)) throw new InvalidTransferException("Threre is two different customermer");
         if (fromAccountNumber.getSavingAccount().getAccountNumber().equals(toAccountNumber.getCurrentAccount().getAccountNumber())) {
@@ -78,11 +79,10 @@ public class SavingAccountService implements SavingAccount {
             toAccountNumber.getCurrentAccount().setBalance(toBalance + amount);
         }
         // Save the updated balances
-        customerRepositary.save(fromAccountNumber);
-        customerRepositary.save(toAccountNumber);
+        customerRepository.save(fromAccountNumber);
+        customerRepository.save(toAccountNumber);
 
         // Send Kafka notification
-        kafkaTemplate.send("transaction_notifications", "Transfer successful from " + fromAccountnumber + " to " + toAccountnumber);
 
         return accountType + " transfer successful";
     }

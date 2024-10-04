@@ -16,10 +16,10 @@ import java.util.UUID;
 
 public class CurrentAccount {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    public UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // Use IDENTITY for auto-increment
+    public Long id;
     public Double balance;
-public String accountType="cuurent";
+public String accountType="curent";
     @Column(unique = true, nullable = false)
     public String accountNumber;
 

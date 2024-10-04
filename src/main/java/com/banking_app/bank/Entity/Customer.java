@@ -11,14 +11,14 @@ import lombok.NoArgsConstructor;
 @Table(name="customer")
 public class Customer {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    public Long customerId;
+    public String customerId;
     public String name;
     public long age;
-    @Email
     public String emailId;
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_account_id") // Specify the foreign key column
     private CurrentAccount currentAccount;
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "saving_account_id") // Specify the foreign key column for savingAccount
     private SavingAccount savingAccount;
 }
